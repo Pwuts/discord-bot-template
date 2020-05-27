@@ -14,7 +14,7 @@ handlers.
 
 A conforming bot module should export:
 ```TS
-function (commandRouter: typeof CommandRouter, discord?: Discord.Client)
+function (commandRouter: typeof CommandRouter, discord?: Discord.Client): any
 ```
 Both parameters are passed by the `CommandRouter` when the bot module is loaded
 with `commandRouter.use(Module)`.
