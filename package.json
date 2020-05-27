@@ -1,0 +1,27 @@
+{
+  "name": "pwuts-discord-bot-template",
+  "description": "Discord Bot Template by Pwuts",
+  "keywords": [
+    "Discord bot",
+    "Template"
+  ],
+  "author": {
+    "email": "github@pwuts.nl",
+    "name": "Pwuts",
+    "url": "https://pwuts.nl/"
+  },
+  "license": "MIT",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Pwuts/discord-bot-template.git"
+  },
+  "bin": "bot.js",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "discord.js": "^12.2.0",
+    "mqtt": "^4.1.0",
+    "nodemon": "^2.0.4"
+  },
+  "scripts": {}
+}
