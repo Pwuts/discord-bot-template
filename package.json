@@ -11,7 +11,7 @@
     "url": "https://pwuts.nl/"
   },
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "repository": {
     "type": "git",
     "url": "git://github.com/Pwuts/discord-bot-template.git"
@@ -23,5 +23,7 @@
     "mqtt": "^4.1.0",
     "nodemon": "^2.0.4"
   },
-  "scripts": {}
+  "scripts": {
+    "start": "nodemon --ignore karma.json bot.js"
+  }
 }

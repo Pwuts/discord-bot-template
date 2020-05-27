@@ -78,6 +78,10 @@ const KarmaService = {
     // Resets (and by default, removes) entry in karmaStore
     reset(subject, rm = true)
     {
+        if (typeof subject == 'object') {
+            subject = `<@${subject.id}>`;
+        }
+
         const index = karmaStore.findIndex(entry => `<@${entry.userId}>` == subject || entry.name.toLowerCase() == subject.toLowerCase());
 
         if (index > -1) {

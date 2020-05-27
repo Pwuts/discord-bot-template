@@ -55,9 +55,7 @@ module.exports = function HackerspaceModule(commandRouter)
         else if (typeof space.open == 'boolean') {
             msg.reply(`${space.name} is ${space.open ? '**open**' : '**dicht**'}`);
         }
-        else {
-            msg.reply(`status van ${space.name} onbekend :(`);
-        }
+        else msg.reply(`status van ${space.name} onbekend :(`);
     });
 
     // Returns a list of all hackerspaces in NL

@@ -5,6 +5,7 @@
 
 const KarmaService = require('../services/karma-service');
 const isAdmin = require('../util/is-admin');
+const Embed = require('discord.js').MessageEmbed;
 
 module.exports = function KarmaModule(commandRouter, discord)
 {
@@ -16,17 +17,31 @@ module.exports = function KarmaModule(commandRouter, discord)
             const karmaCommand = Object.assign({}, karmaMessageMatch.groups);
 
             const count = karmaCommand.count;
-            if (count == '__' && !isAdmin(message.author.id)) return;   // only admins can reset karma
+            if (count == '__' && !isAdmin(message.author.id)) return;
 
-            let subject;
+            let subject, subjectUserId;
             if (karmaCommand.emoji) {
                 subject = karmaCommand.emoji;
-            } else if (karmaCommand.user) {
-                subject = message.mentions.users.get(/\<@!?(?<id>\d{18})\>/.exec(karmaCommand.user).groups.id);
-            } else {
+            }
+            else if (karmaCommand.user) {
+                subjectUserId = /\<@!?(?<id>\d{18})\>/.exec(karmaCommand.user).groups.id;
+                subject = message.mentions.users.get(subjectUserId);
+            }
+            else {
                 subject = karmaCommand.subject.trim();
+                if (!subject.length) return;
+
                 const stored = KarmaService.get(subject);
-                if (stored && stored.userId) subject = `<@${stored.userId}>`;
+                if (stored.userId) {
+                    subjectUserId = stored.userId;
+                    subject = `<@${stored.userId}>`;
+                }
+            }
+
+            if (subjectUserId && count != '__' && subjectUserId == message.author.id) {
+                message.reply('Je kunt jezelf geen karma geven.')
+                    .then(message => message.delete({ timeout: 10e3 }));
+                return;
             }
 
             const updated = count != '__' ? KarmaService.increment(subject, count == '++' ? 1 : -1) : KarmaService.reset(subject);
@@ -48,7 +63,8 @@ module.exports = function KarmaModule(commandRouter, discord)
         const subject = command.args.trim();
         const storedKarma = KarmaService.get(subject);
         if (storedKarma.userId) {
-            message.reply(`<@${storedKarma.userId}> heeft ${storedKarma.karma} karma`);
+            message.reply((storedKarma.userId != message.author.id ?
+                `<@${storedKarma.userId}> heeft` : 'je hebt') + ` ${storedKarma.karma} karma`);
         } else {
             message.reply(`karma voor ${subject}: ${storedKarma.karma}`);
         }
@@ -57,27 +73,36 @@ module.exports = function KarmaModule(commandRouter, discord)
     // Returns the karma scoreboard
     commandRouter.handler('karmalist', message => {
         const karmaList = KarmaService.list();
-        message.reply({
-            embed: {
-                title: 'Karma scorebord',
-                fields: [
-                    {
-                        name: 'Gebruikers',
-                        value: karmaList.users.map(entry => `${entry.name}: ${entry.karma}`).join('\n'),
-                        inline: true
-                    },
-                    {
-                        name: '\u200b',
-                        value: '\u200b',
-                        inline: true
-                    },
-                    {
-                        name: 'Dingen',
-                        value: karmaList.things.map(entry => `${entry.name}: ${entry.karma}`).join('\n'),
-                        inline: true
-                    }
-                ]
+
+        if (karmaList.users.length || karmaList.things.length) {
+            const embed = new Embed({
+                title: 'Karma scorebord'
+            });
+
+            if (karmaList.users.length) {
+                embed.addField(
+                    'Gebruikers',
+                    karmaList.users.map(entry => `${entry.name}: ${entry.karma}`).join('\n'),
+                    true
+                );
+
+                if (karmaList.things.length) {
+                    embed.addField('\u200b', '\u200b', true);   // horizontal spacer
+                }
             }
-        });
+
+            if (karmaList.things.length) {
+                embed.addField(
+                    'Dingen',
+                    karmaList.things.map(entry => `${entry.name}: ${entry.karma}`).join('\n'),
+                    true
+                );
+            }
+
+            message.reply({ embed });
+        } else {
+            message.reply('De karmalijst is nog leeg')
+                .then(message => message.delete({ timeout: 10e3 }));
+        }
     });
 }
