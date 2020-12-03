@@ -3,9 +3,10 @@
 **  Pwuts <github@pwuts.nl>
 */
 
-const KarmaService = require('../services/karma-service');
 const isAdmin = require('../util/is-admin');
-import { MessageEmbed as Embed } from 'discord.js';
+import { CommandRouter } from '../util/command-router';
+import KarmaService = require('../services/karma-service');
+import { Client, MessageEmbed as Embed, MessageEmbed } from 'discord.js';
 
 export const name = 'KarmaModule';
 
@@ -14,10 +15,10 @@ export const help = {
     text: '!*iets*(++|--)\n!karma *iets*\n!karmalist'
 };
 
-export function hook({ commandRouter, discord })
+export function hook({ commandRouter, discord }: { commandRouter: CommandRouter, discord: Client })
 {
     // Handle karma increment, decrement, reset commands
-    discord.on('message', message => {
+    discord.on('message', async message => {
         const karmaMessageMatch = /^! *(?:(?<subject>[a-zA-Z0-9 \-_()]+)|(?<user><@!?\d{18}>)|(?<emoji>(?:<:[A-Za-z0-9_]+:\d{18}>)+)) *(?<count>\+\+|--|__)/.exec(message.content);
 
         if (karmaMessageMatch) {
@@ -38,7 +39,7 @@ export function hook({ commandRouter, discord })
                 subject = karmaCommand.subject.trim();
                 if (!subject.length) return;
 
-                const stored = KarmaService.get(subject);
+                let stored = await KarmaService.get(message.guild.id, subject);
                 if (stored.userId) {
                     subjectUserId = stored.userId;
                     subject = `<@${stored.userId}>`;
@@ -51,24 +52,23 @@ export function hook({ commandRouter, discord })
                 return;
             }
 
-            const updated = count != '__' ? KarmaService.increment(subject, count == '++' ? 1 : -1) : KarmaService.reset(subject);
+            const updated = count != '__'
+                ? await KarmaService.increment(message.guild.id, subject, count == '++' ? 1 : -1)
+                : await KarmaService.reset(message.guild.id, subject);
 
             message.reply(`karma voor ${subject}: ${updated.karma}`);
-
-            KarmaService.write();
-            return;
         }
     });
 
     // Return karma info for a subject or user
-    commandRouter.handler('karma', (message, command) => {
+    commandRouter.handler('karma', async (message, command) => {
         if (!command.args) {
-            message.reply(`je hebt ${ KarmaService.get(`<@${message.author.id}>`).karma } karma`);
+            message.reply(`je hebt ${ (await KarmaService.get(message.guild.id, `<@${message.author.id}>`)).karma } karma`);
             return;
         }
 
         const subject = command.args.trim();
-        const storedKarma = KarmaService.get(subject);
+        const storedKarma = await KarmaService.get(message.guild.id, subject);
         if (storedKarma.userId) {
             message.reply((storedKarma.userId != message.author.id ?
                 `<@${storedKarma.userId}> heeft` : 'je hebt') + ` ${storedKarma.karma} karma`);
@@ -78,8 +78,8 @@ export function hook({ commandRouter, discord })
     });
 
     // Returns the karma scoreboard
-    commandRouter.handler('karmalist', message => {
-        const karmaList = KarmaService.list();
+    commandRouter.handler('karmalist', async message => {
+        const karmaList = await KarmaService.list(message.guild.id);
 
         if (karmaList.users.length || karmaList.things.length) {
             const embed = new Embed({
@@ -89,7 +89,7 @@ export function hook({ commandRouter, discord })
             if (karmaList.users.length) {
                 embed.addField(
                     'Gebruikers',
-                    karmaList.users.map(entry => `${entry.name}: ${entry.karma}`).join('\n'),
+                    karmaList.users.map(entry => `${entry.subject}: ${entry.karma}`).join('\n'),
                     true
                 );
 
@@ -101,7 +101,7 @@ export function hook({ commandRouter, discord })
             if (karmaList.things.length) {
                 embed.addField(
                     'Dingen',
-                    karmaList.things.map(entry => `${entry.name}: ${entry.karma}`).join('\n'),
+                    karmaList.things.map(entry => `${entry.subject}: ${entry.karma}`).join('\n'),
                     true
                 );
             }

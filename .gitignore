@@ -4,4 +4,4 @@ dist/
 config/*
 !config/*example*
 
-karma.json
+storage/*.db
