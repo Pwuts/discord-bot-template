@@ -3,11 +3,13 @@
 **  Pwuts <github@pwuts.nl>
 */
 
-const Discord = require('discord.js');
-const config = require('./config');
+import CommandRouter from './util/command-router';
+import * as Discord from 'discord.js';
+const config = require('../config');
 
 const discord = new Discord.Client();
-const commandRouter = require('./util/command-router')(discord);
+
+const commandRouter = CommandRouter(discord);
 
 commandRouter.registerHelpSection({
     name: 'Meta',

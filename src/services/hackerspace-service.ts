@@ -22,10 +22,20 @@ axios.get('https://directory.spaceapi.io/')
 // Gets SpaceAPI data if applicable
 function getSpaceInfo(space)
 {
-    return space.api ? axios.get(space.api).then(result => result.data).catch(console.error) : Promis.promisify(null);
+    return space.api ? axios.get(space.api).then(result => result.data).catch(console.error) : Promise.resolve(null);
 }
 
-let hackerspaces = [
+type HackerspaceRecord = {
+    id: string,
+    name: string,
+    location: string,
+    aliases: string[],
+    active: boolean,
+    api?: string,
+    open?: boolean,
+}
+
+let hackerspaces: HackerspaceRecord[] = [
     { id: 'denhaag',    name: 'RevSpace',              location: 'Den Haag (Leidschendam)', aliases: [ 'Revelation Space', 'Leidschendam' ], active: true },
     { id: 'eindhoven',  name: 'Hackalot',              location: 'Eindhoven',               aliases: [ 'Brabant' ],                          active: true },
     { id: 'rotterdam',  name: 'Pixelbar',              location: 'Rotterdam',               aliases: [],                                     active: true },
@@ -79,4 +89,4 @@ const HackerspaceService = {
         return hackerspaces;
     }
 }
-module.exports = HackerspaceService;
+export = HackerspaceService;

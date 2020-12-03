@@ -6,14 +6,14 @@
 const HackerspaceService = require('../services/hackerspace-service');
 const Embed = require('discord.js').MessageEmbed;
 
-module.exports.name = 'HackerspaceModule';
+export const name = 'HackerspaceModule';
 
-module.exports.help = {
+export const help = {
     name: 'Hackerspaces',
     text: '!hackerspaces\n!hackerspace *naam|locatie*',
 };
 
-module.exports.hook = function ({ commandRouter })
+export function hook({ commandRouter })
 {
     // Returns info for the requested hackerspace
     commandRouter.handler('hackerspace', async (msg, command) => {
@@ -77,7 +77,7 @@ module.exports.hook = function ({ commandRouter })
         // fetch SpaceAPI data for every space and add to embed
         for (let i = 0; i < spaces.length; i++) {
             const space = spaces[i];
-            info = await space.info;
+            let info = await space.info;
             spaceList.addField(space.location,
                 `**${info ? `[${space.name}](${info.url})` : space.name}**\n` +
                 `${space.active ? space.open ? '*open*' : '*dicht*' : 'dood :('}`,

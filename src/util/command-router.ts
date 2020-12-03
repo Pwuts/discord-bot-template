@@ -3,21 +3,55 @@
 **  Pwuts <github@pwuts.nl>
 */
 
-const config = require('../config').bot;
+import { Client, Message } from 'discord.js';
 
-let commandHandlers = [];
-let helpSections = [];
+const config = require('../../config').bot;
 
-module.exports = function CommandRouter(discord)
+interface Module {
+    name: string,
+    help?: HelpSection,
+    hook: ({ discord, commandRouter }: { discord: Client, commandRouter: CommandRouter }) => any
+}
+
+interface CommandHandler {
+    commands: string[],
+    callback: (message: Message, command: { name: string, args: string }, discord: Client) => any,
+}
+
+interface HelpSection {
+    name: string,
+    text: string,
+}
+
+let commandHandlers: CommandHandler[] = [];
+let helpSections: HelpSection[] = [];
+
+export interface CommandRouter {
+    handler(
+        commands: string | string[],
+        callback: (
+            message: Message,
+            command: {
+                name: string;
+                args: string;
+            },
+            discord: Client
+        ) => any
+    ): void;
+    registerHelpSection(section: HelpSection): void;
+    use(module: Module): void;
+}
+
+export default function initializeRouter(discord: Client): CommandRouter
 {
     const commandRouter = {
         // Set a handler for one or multiple commands
-        handler(commands, callback)
+        handler(commands: string | string[], callback: CommandHandler['callback'])
         {
             if (typeof commands == 'string') {
                 commands = [ commands ];
             }
-            let reserved;
+            let reserved: string;
             if (reserved = commands.find(command => config.reservedCommands.includes(command))) {
                 throw new Error(`ERROR: attempt to register handler for reserved command "${reserved}"`);
             }
@@ -28,7 +62,7 @@ module.exports = function CommandRouter(discord)
             });
         },
 
-        registerHelpSection(section)
+        registerHelpSection(section: HelpSection)
         {
             if (typeof section !== 'object'
                 || typeof section.name !== 'string' || typeof section.text !== 'string') {
@@ -39,7 +73,7 @@ module.exports = function CommandRouter(discord)
         },
 
         // Set up a module
-        use(module)
+        use(module: Module)
         {
             if (typeof module.hook !== 'function') {
                 throw new Error(`ERROR: invalid module "${module.name}"`);

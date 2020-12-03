@@ -16,14 +16,21 @@
     "type": "git",
     "url": "git://github.com/Pwuts/discord-bot-template.git"
   },
-  "bin": "bot.js",
+  "bin": {
+    "pwuts-discord-bot-template": "bot.js"
+  },
   "dependencies": {
     "axios": "^0.19.2",
     "discord.js": "^12.2.0",
     "mqtt": "^4.1.0",
-    "nodemon": "^2.0.4"
+    "nodemon": "^2.0.4",
+    "typescript": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^14.0.0"
   },
   "scripts": {
-    "start": "nodemon --ignore karma.json bot.js"
+    "dev": "tsc -w & nodemon --ignore karma.json dist/bot.js",
+    "start": "nodemon --ignore karma.json dist/bot.js"
   }
 }
