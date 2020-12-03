@@ -7,7 +7,14 @@ const KarmaService = require('../services/karma-service');
 const isAdmin = require('../util/is-admin');
 const Embed = require('discord.js').MessageEmbed;
 
-module.exports = function KarmaModule(commandRouter, discord)
+module.exports.name = 'KarmaModule';
+
+module.exports.help = {
+    name: 'Karma',
+    text: '!*iets*(++|--)\n!karma *iets*\n!karmalist'
+};
+
+module.exports.hook = function ({ commandRouter, discord })
 {
     // Handle karma increment, decrement, reset commands
     discord.on('message', message => {

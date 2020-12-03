@@ -53,35 +53,45 @@ bot admin list (see [configuration](#configuration)).
 
 To keep things tidy (without too much hardcoded stuff), we have `config/index[.example].js`.
 To use the bot, you do need to create `config/index.js` from the example file provided.
-The default example contains:
-* `Discord`
+The same goes for `config/karma[.example].js`, to use the karma module.
+
+The default `index.js` example contains:
+* `discord`
     * `token` (used to log in to Discord as a registered bot)
-    * `adminUserIds` (array of user ID's allowed to do admin things)
-* `Karma`
-    * `defaultKarmaStore` (used when no `karma.json` is present yet)
+    * `ownerUserIds` (array of user ID's configured as bot owners)
+* `bot`
+    * `reservedCommands` (an array of commands unavailable for modules to register)
+
+And `karma[.example].js`:
+* `defaultKarmaStore` (used when no `karma.json` is present yet)
 
 ## Example
 
 Example usage of everything described above:
 ```TS
 const Discord = require('discord.js');
-const config = require('./config').Discord;
-
-// Load a module
-const KarmaModule = require('./modules/karma-module');
+const config = require('./config');
 
 const discord = new Discord.Client();
 
 // Create an instance of CommandRouter
 const commandRouter = require('./util/command-router')(discord);
 
-// Attach module
-commandRouter.use(KarmaModule);
-
 // Set a command handler directly
-commandRouter.handler('ping', message: Discord.Message => {
+commandRouter.handler('ping', (message: Discord.Message) => {
     message.reply(`pong (${Date.now() - message.createdTimestamp} ms)`);
 });
 
-discord.login(config.token);
+commandRouter.registerHelpSection({
+    name: 'Meta',
+    text: '!help\n!ping'
+});
+
+// Load a module
+const KarmaModule = require('./modules/karma-module');
+
+// Attach module
+commandRouter.use(KarmaModule);
+
+discord.login(config.discord.token);
 ```

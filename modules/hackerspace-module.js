@@ -6,7 +6,14 @@
 const HackerspaceService = require('../services/hackerspace-service');
 const Embed = require('discord.js').MessageEmbed;
 
-module.exports = function HackerspaceModule(commandRouter)
+module.exports.name = 'HackerspaceModule';
+
+module.exports.help = {
+    name: 'Hackerspaces',
+    text: '!hackerspaces\n!hackerspace *naam|locatie*',
+};
+
+module.exports.hook = function ({ commandRouter })
 {
     // Returns info for the requested hackerspace
     commandRouter.handler('hackerspace', async (msg, command) => {

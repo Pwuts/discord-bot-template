@@ -12,7 +12,7 @@ let karmaStore = [];
 fs.readFile(karmaStoreFile, (error, data) => {
     if (error) {
         if (error.code == 'ENOENT') {
-            karmaStore = require('../config').Karma.defaultKarmaStore;
+            karmaStore = require('../config/karma').defaultKarmaStore;
 
             fs.writeFile(karmaStoreFile, JSON.stringify(karmaStore), error => error ? console.error('Could not create karma.json:', error) : null);
             console.debug('created karma.json:', karmaStore);
