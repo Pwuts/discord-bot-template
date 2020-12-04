@@ -61,6 +61,14 @@ const SettingsStore = {
         return row?.value;
     },
 
+    async listTextOption(optionName: string)
+    {
+        return await db.all<{ server: string, value: string }[]>(
+            'SELECT server, value FROM settingsText WHERE name = $name', {
+            $name: optionName,
+        });
+    },
+
     async setIntOption(serverId: string, optionName: string, value: number)
     {
         serverId == 'global' || assertDiscordSnowflake(serverId);
@@ -87,6 +95,14 @@ const SettingsStore = {
         });
 
         return row?.value;
+    },
+
+    async listIntOption(optionName: string)
+    {
+        return await db.all<{ server: string, value: number }[]>(
+            'SELECT server, value FROM settingsInt WHERE name = $name', {
+            $name: optionName,
+        });
     },
 };
 

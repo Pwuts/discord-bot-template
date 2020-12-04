@@ -9,6 +9,26 @@ export function assertDiscordSnowflake(allegedSnowflake: string)
         throw new Error(`"${allegedSnowflake}" is not a Discord snowflake`);
 }
 
+export function isDiscordUserTag(allegedChannelTag: string)
+{
+    return !!parseDiscordUserTag(allegedChannelTag);
+}
+
+export function parseDiscordUserTag(allegedChannelTag: string)
+{
+    return /<@!?(?<snowflake>\d{18})>/.exec(allegedChannelTag)?.groups?.snowflake;
+}
+
+export function isDiscordChannelTag(allegedChannelTag: string)
+{
+    return !!parseDiscordChannelTag(allegedChannelTag);
+}
+
+export function parseDiscordChannelTag(allegedChannelTag: string)
+{
+    return /<#(?<snowflake>\d{18})>/.exec(allegedChannelTag)?.groups?.snowflake;
+}
+
 export function isInteger(allegedInteger)
 {
     return ['number', 'bigint'].includes(typeof allegedInteger) && allegedInteger % 1 < 1e-12

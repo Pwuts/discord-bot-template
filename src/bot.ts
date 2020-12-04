@@ -4,22 +4,15 @@
 */
 
 import * as fs from 'fs';
-import * as Discord from 'discord.js';
 import CommandRouter from './util/command-router';
+import { initialize } from './services/discord-service';
 
 const config = require('../config');
+const DiscordService = initialize(config.discord.token);
 
-const discord = new Discord.Client();
-
-const commandRouter = new CommandRouter(discord);
+const commandRouter = new CommandRouter(DiscordService.getClient());
 
 // load modules
 fs.readdirSync(`${__dirname}/modules/`).forEach(filename => {
     commandRouter.use(require(`${__dirname}/modules/${filename}`).default);
 });
-
-discord.on('ready', () => {
-    console.log(`Logged in as ${discord.user.tag}!`);
-});
-
-discord.login(config.discord.token);

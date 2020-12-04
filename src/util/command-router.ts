@@ -36,8 +36,6 @@ export class CommandRouter {
         });
 
         this.handler('module', (message, command) => {
-            if (!isAdmin(message.author.id)) return;
-
             const usageString = 'usage: `!module [enable | disable] [module name]`';
             const subCommands = ['disable', 'enable'];
 
@@ -60,11 +58,9 @@ export class CommandRouter {
             this.setModuleEnabled(message.guild?.id || 'DM', args[1], !!subCommands.indexOf(args[0]));
 
             message.reply(`module "${args[1]}" ${args[0]}d!`);
-        });
+        }, true);
 
         this.handler('modules', async message => {
-            // if (!isAdmin(message.author.id)) return;
-
             const embed = new MessageEmbed({
                 title: 'Modules',
                 description: 'Active and inactive modules for this guild or DM channel'
@@ -118,6 +114,8 @@ export class CommandRouter {
                 activeModules.map(module => module.commandHandlers)
                     .reduce((p, c) => c ? p.concat(c) : p, this.commandHandlers)
                     .forEach(handler => {
+                        if (handler.adminOnly && !isAdmin(message.author.id)) return;
+
                         if (handler.commands.includes(command.name.toLowerCase())) {
                             handler.callback(message, command, this.discord);
                         }
@@ -135,7 +133,7 @@ export class CommandRouter {
     }
 
     // Registers a handler not connected to a module. DO NOT USE IN MODULES!
-    public handler(commands: string | string[], callback: CommandHandler['callback'])
+    public handler(commands: string | string[], callback: CommandHandler['callback'], adminOnly?: boolean)
     {
         if (typeof commands == 'string') {
             commands = [ commands ];
@@ -146,6 +144,7 @@ export class CommandRouter {
         }
 
         this.commandHandlers.push({
+            adminOnly,
             commands,
             callback
         });
@@ -234,7 +233,7 @@ export interface Module {
     allowDM: boolean,
     commandHandlers?: CommandHandler[],
     messageHandler?: MessageCallback,
-    initHook?: ({ discord, commandRouter }: { discord: Client, commandRouter: CommandRouter }) => any
+    initModule?: ({ discord, commandRouter }: { discord: Client, commandRouter: CommandRouter }) => any
 }
 
 export interface HelpSection {
@@ -243,6 +242,7 @@ export interface HelpSection {
 }
 
 export interface CommandHandler {
+    adminOnly?: boolean,
     commands: string[],
     callback: (message: Message, command: { name: string, args: string }, discord: Client) => any,
 }
