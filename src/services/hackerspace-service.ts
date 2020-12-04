@@ -15,9 +15,9 @@ axios.get('https://directory.spaceapi.io/')
             space.api = space.name in directory ? directory[space.name] : null;
             if (space.api) Object.defineProperty(space, 'info', { get: () => getSpaceInfo(space) });
         });
-        console.log('SpaceAPI directory loaded');
+        console.log('HackerspaceService: SpaceAPI directory loaded');
     })
-    .catch(error => console.error('Could not fetch SpaceAPI directory:', error));
+    .catch(error => console.error('HackerspaceService: Could not fetch SpaceAPI directory:', error));
 
 // Gets SpaceAPI data if applicable
 function getSpaceInfo(space)
@@ -57,7 +57,7 @@ let hackerspaces: HackerspaceRecord[] = [
 
 const revspaceMqtt = MQTT.connect('mqtt://hoera10jaar.revspace.nl');
 revspaceMqtt.on('connect', packet => {
-    console.log('Connected to Revspace MQTT broker');
+    console.log('HackerspaceService: Connected to Revspace MQTT broker');
 });
 
 revspaceMqtt.subscribe('hoera10jaar/#', { rh: true }, error => error ? console.error('Could not subscribe to Hoera10jaar:', error) : null);
@@ -68,7 +68,7 @@ revspaceMqtt.on('message', (topic, message) => {
     if (space === null) {
         return;
     } else if (space === undefined) {
-        console.warn(`Unknown hackerspace "${space}"`);
+        console.warn(`HackerspaceService: Unknown hackerspace "${space}"`);
         return;
     }
 
