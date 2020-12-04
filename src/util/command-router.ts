@@ -1,12 +1,232 @@
 /*
-**  2020-05-26
+**  2020-12-04
 **  Pwuts <github@pwuts.nl>
 */
 
-import { Client, Message } from 'discord.js';
+import { Client, Message, MessageEmbed } from 'discord.js';
 import SettingsStore from '../stores/settings';
+import isAdmin = require('./is-admin');
 
 const config = require('../../config').bot;
+
+export class CommandRouter {
+    private discord: Client;
+
+    private modules: Module[] = [];
+    private helpSections: HelpSection[] = [];
+    private commandHandlers: CommandHandler[] = [];
+
+    constructor(discord: Client)
+    {
+        this.discord = discord;
+
+        this.handler('help', msg => {
+            msg.reply('probeer maar wat');
+
+            setTimeout(async () => {
+                msg.author.send({
+                    embed: {
+                        title: 'Okee grapje, hier zijn wat hints:',
+                        fields: this.helpSections
+                                    .concat((await this.getActiveModules(msg.guild?.id || 'DM')).map(module => module.help))
+                                    .map(section => ({ name: section.name, value: section.text }))
+                    }
+                });
+            }, 5e3);
+        });
+
+        this.handler('module', (message, command) => {
+            if (!isAdmin(message.author.id)) return;
+
+            const usageString = 'usage: `!module [enable | disable] [module name]`';
+            const subCommands = ['disable', 'enable'];
+
+            const args = command.args?.split(' ');
+            if (args?.length != 2) {
+                message.reply(usageString);
+                return;
+            }
+
+            if (!subCommands.includes(args[0])) {
+                message.reply(usageString);
+                return;
+            }
+
+            if (!this.moduleExists(args[1])) {
+                message.reply(`module "${args[1]}" does not exist`);
+                return;
+            }
+
+            this.setModuleEnabled(message.guild?.id || 'DM', args[1], !!subCommands.indexOf(args[0]));
+
+            message.reply(`module "${args[1]}" ${args[0]}d!`);
+        });
+
+        this.handler('modules', async message => {
+            // if (!isAdmin(message.author.id)) return;
+
+            const embed = new MessageEmbed({
+                title: 'Modules',
+                description: 'Active and inactive modules for this guild or DM channel'
+            });
+
+            const activeModules = await this.getActiveModules(message.guild?.id || 'DM');
+
+            if (activeModules.length) {
+                embed.addField(
+                    'Active modules',
+                    activeModules.map(module => module.name).join('\n'),
+                    true
+                );
+
+                if (activeModules.length < this.modules.length) {
+                    embed.addField('\u200b', '\u200b', true);   // horizontal spacer
+                }
+            }
+
+            if (activeModules.length < this.modules.length) {
+                embed.addField(
+                    'Inactive modules',
+                    this.modules.filter(module => !activeModules.includes(module))
+                                .map(module => module.name).join('\n'),
+                    true
+                );
+            }
+
+            message.reply({ embed });
+        });
+
+        // general message handler; finds commands and executes applicable handler functions
+        this.discord.on('message', async message => {
+            const commandMessageMatch = /^!(?<name>[a-zA-Z0-9]+)(?:\s+(?<args>.*)|$)/.exec(message.content);
+    
+            const activeModulesPromise = this.getActiveModules(message.guild?.id ?? 'DM');
+            let activeModules: Module[];
+    
+            if (commandMessageMatch) {
+                const command = {
+                    name: commandMessageMatch.groups.name,
+                    args: commandMessageMatch.groups.args ?? null
+                };
+                console.debug(
+                    `Command from ${message.author.username}:`, command,
+                    'in', message.guild ? `guild "${message.guild.name}"` : 'DM'
+                );
+    
+                activeModules = await activeModulesPromise;
+    
+                activeModules.map(module => module.commandHandlers)
+                    .reduce((p, c) => c ? p.concat(c) : p, this.commandHandlers)
+                    .forEach(handler => {
+                        if (handler.commands.includes(command.name.toLowerCase())) {
+                            handler.callback(message, command, this.discord);
+                        }
+                    });
+            }
+
+            if (!activeModules) activeModules = await activeModulesPromise;
+
+            activeModules.forEach(module => {
+                if (!module.messageHandler) return;
+    
+                module.messageHandler(message, this.discord);
+            });
+        });
+    }
+
+    // Registers a handler not connected to a module. DO NOT USE IN MODULES!
+    public handler(commands: string | string[], callback: CommandHandler['callback'])
+    {
+        if (typeof commands == 'string') {
+            commands = [ commands ];
+        }
+        let reserved: string;
+        if (reserved = commands.find(command => config.reservedCommands.includes(command))) {
+            // throw new Error(`attempt to register handler for reserved command "${reserved}"`);
+        }
+
+        this.commandHandlers.push({
+            commands,
+            callback
+        });
+    }
+
+    // Registers a help section not connected to a module. DO NOT USE IN MODULES!
+    public registerHelpSection(section: HelpSection)
+    {
+        if (typeof section !== 'object'
+            || typeof section.name !== 'string' || typeof section.text !== 'string') {
+            throw new Error('invalid help section');
+        }
+
+        this.helpSections.push(section);
+    }
+
+    public use(module: Module)
+    {
+        if (typeof module.name !== 'string') {
+            console.error('ERROR: invalid module', module);
+            throw new Error(`invalid module`);
+        }
+        if (module.help == undefined) {
+            console.warn(`WARN: module ${module.name} has no help section`);
+        }
+
+        this.modules.push(module);
+
+        let chc = module.commandHandlers?.length ?? 0;
+        console.info(
+            `${module.name} loaded:`
+            + ` ${chc} command handler` + (chc != 1 ? 's' : '')
+        );
+    }
+
+    private async getActiveModules(serverId: string | 'DM'): Promise<Module[]>
+    {
+        let activeModules: Module[] = [];
+
+        for (let i = 0; i < this.modules.length; i++) {
+            let module = this.modules[i];
+            if (serverId !== 'DM' ? await this.moduleIsEnabled(serverId, module.name) : this.moduleAllowsDM(module)) {
+                activeModules.push(module);
+            }
+        }
+
+        return activeModules;
+    }
+
+    // Utility methods
+    private moduleExists(moduleName: string): boolean
+    {
+        return !!this.modules.find(module => module.name == moduleName)
+    }
+
+    private async moduleIsEnabled(serverId: string, moduleName: string): Promise<boolean>
+    {
+        if (!this.moduleExists(moduleName)) {
+            throw new Error('module does not exist');
+        }
+        return !!(
+            await SettingsStore.getIntOption(serverId, `module.${moduleName}.enabled`)
+            ?? config.defaultEnabledModules.includes(moduleName)
+        );
+    }
+
+    private async setModuleEnabled(serverId: string, moduleName: string, enable: boolean): Promise<void>
+    {
+        if (!this.moduleExists(moduleName)) {
+            throw new Error('module does not exist');
+        }
+        await SettingsStore.setIntOption(serverId, `module.${moduleName}.enabled`, Number(enable));
+    }
+
+    private moduleAllowsDM(module: Module): boolean
+    {
+        return module.allowDM;
+    }
+}
+
+export default CommandRouter;
 
 export interface Module {
     name: string,
@@ -14,7 +234,7 @@ export interface Module {
     allowDM: boolean,
     commandHandlers?: CommandHandler[],
     messageHandler?: MessageCallback,
-    hook?: ({ discord, commandRouter }: { discord: Client, commandRouter: CommandRouter }) => any
+    initHook?: ({ discord, commandRouter }: { discord: Client, commandRouter: CommandRouter }) => any
 }
 
 export interface HelpSection {
@@ -29,148 +249,3 @@ export interface CommandHandler {
 
 export type MessageCallback =
     (message: Message, discord: Client) => any
-
-const modules: Module[] = [];
-
-let commandHandlers: CommandHandler[] = [];
-let helpSections: HelpSection[] = [];
-
-export default function initializeRouter(discord: Client): CommandRouter
-{
-    const commandRouter = {
-        // Set a handler for one or multiple commands
-        handler(commands: string | string[], callback: CommandHandler['callback'])
-        {
-            if (typeof commands == 'string') {
-                commands = [ commands ];
-            }
-            let reserved: string;
-            if (reserved = commands.find(command => config.reservedCommands.includes(command))) {
-                // throw new Error(`ERROR: attempt to register handler for reserved command "${reserved}"`);
-            }
-
-            commandHandlers.push({
-                commands,
-                callback
-            });
-        },
-
-        registerHelpSection(section: HelpSection)
-        {
-            if (typeof section !== 'object'
-                || typeof section.name !== 'string' || typeof section.text !== 'string') {
-                throw new Error('ERROR: invalid help section');
-            }
-
-            helpSections.push(section);
-        },
-
-        // Set up a module
-        use(module: Module)
-        {
-            if (typeof module.name !== 'string') {
-                throw new Error(`ERROR: invalid module`);
-            }
-            if (module.help == undefined) {
-                console.warn(`WARN: module ${module.name} has no help section`);
-            }
-
-            modules.push(module);
-
-            console.info(`${module.name} loaded`);
-        }
-    };
-
-    commandRouter.handler('help', msg => {
-        msg.reply('probeer maar wat');
-
-        setTimeout(async () => {
-            msg.author.send({
-                embed: {
-                    title: 'Okee grapje, hier zijn wat hints:',
-                    fields: helpSections.concat((await getActiveModules(msg.guild?.id || 'DM')).map(module => module.help))
-                                        .map(section => ({ name: section.name, value: section.text }))
-                }
-            });
-        }, 5e3);
-    });
-
-    // general message handler; finds commands and executes applicable handler functions
-    discord.on('message', async message => {
-        const commandMessageMatch = /^!(?<name>[a-zA-Z0-9]+)(?:\s+(?<args>.*)|$)/.exec(message.content);
-
-        const activeModulesPromise = getActiveModules(message.guild?.id ?? 'DM');
-        let activeModules: Module[];
-
-        if (commandMessageMatch) {
-            const command = {
-                name: commandMessageMatch.groups.name,
-                args: commandMessageMatch.groups.args ?? null
-            };
-            console.debug(
-                `Command from ${message.author.username}:`, command,
-                'in', message.guild ? `guild "${message.guild.name}"` : 'DM'
-            );
-
-            activeModules = await activeModulesPromise;
-
-            activeModules.map(module => module.commandHandlers)
-                .reduce((p, c) => c ? p.concat(c) : p, commandHandlers)
-                .forEach(handler => {
-                    if (handler.commands.includes(command.name.toLowerCase())) {
-                        handler.callback(message, command, discord);
-                    }
-                });
-        }
-
-        if (!activeModules) activeModules = await activeModulesPromise;
-
-        activeModules.forEach(module => {
-            if (!module.messageHandler) return;
-
-            module.messageHandler(message, discord);
-        });
-    });
-
-    return commandRouter;
-}
-
-export interface CommandRouter {
-    handler(
-        commands: string | string[],
-        callback: (
-            message: Message,
-            command: {
-                name: string;
-                args: string;
-            },
-            discord: Client
-        ) => any
-    ): void;
-    registerHelpSection(section: HelpSection): void;
-    use(module: Module): void;
-}
-
-async function getActiveModules(serverId: string | 'DM'): Promise<Module[]>
-{
-    let activeModules = [];
-
-    for (let i = 0; i < modules.length; i++) {
-        let module = modules[i];
-        if (serverId !== 'DM' ? await moduleIsEnabled(serverId, module.name) : moduleAllowsDM(module)) {
-            activeModules.concat(module);
-        }
-    }
-
-    return activeModules;
-}
-
-async function moduleIsEnabled(serverId: string, moduleName: string): Promise<boolean>
-{
-    return !!(await SettingsStore.getIntOption(serverId, `module.${moduleName}.enabled`));
-}
-
-function moduleAllowsDM(module: Module): boolean
-{
-    return module.allowDM;
-}

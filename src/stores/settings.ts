@@ -36,9 +36,13 @@ sqlite.open({
 const SettingsStore = {
     async setTextOption(serverId: string, optionName: string, value: string)
     {
-        assertDiscordSnowflake(serverId);
+        serverId == 'global' || assertDiscordSnowflake(serverId);
 
-        const insert = await db.prepare('INSERT INTO settingsText VALUES ($server, $name, $value)');
+        const insert = await db.prepare(
+            `INSERT INTO settingsText VALUES ($server, $name, $value)
+                ON CONFLICT (server, name)
+                    DO UPDATE SET value = excluded.value`
+        );
         await insert.run({
             $server: serverId,
             $name: optionName,
@@ -49,9 +53,10 @@ const SettingsStore = {
 
     async getTextOption(serverId: string, optionName: string)
     {
-        assertDiscordSnowflake(serverId);
+        serverId == 'global' || assertDiscordSnowflake(serverId);
 
-        const row = await db.get('SELECT value FROM settingsText WHERE server = $server AND name = $name', {
+        const row = await db.get<{ value: string }>(
+            'SELECT value FROM settingsText WHERE server = $server AND name = $name', {
             $server: serverId,
             $name: optionName,
         });
@@ -61,10 +66,14 @@ const SettingsStore = {
 
     async setIntOption(serverId: string, optionName: string, value: number)
     {
-        assertDiscordSnowflake(serverId);
+        serverId == 'global' || assertDiscordSnowflake(serverId);
         assertInteger(value);
 
-        const insert = await db.prepare('INSERT INTO settingsInt VALUES ($server, $name, $value)');
+        const insert = await db.prepare(
+            `INSERT INTO settingsInt VALUES ($server, $name, $value)
+                ON CONFLICT (server, name)
+                    DO UPDATE SET value = excluded.value`
+        );
         await insert.run({
             $server: serverId,
             $name: optionName,
@@ -75,9 +84,10 @@ const SettingsStore = {
 
     async getIntOption(serverId: string, optionName: string)
     {
-        assertDiscordSnowflake(serverId);
+        serverId == 'global' || assertDiscordSnowflake(serverId);
 
-        const row = await db.get('SELECT value FROM settingsInt WHERE server = $server AND name = $name', {
+        const row = await db.get<{ value: number }>(
+            'SELECT value FROM settingsInt WHERE server = $server AND name = $name', {
             $server: serverId,
             $name: optionName,
         });

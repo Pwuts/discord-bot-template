@@ -32,7 +32,7 @@
     "@types/node": "^14.0.0"
   },
   "scripts": {
-    "dev": "tsc -w & nodemon --ignore karma.json dist/bot.js",
-    "start": "nodemon --ignore karma.json dist/bot.js"
+    "dev": "tsc -w & nodemon dist/bot.js",
+    "start": "nodemon dist/bot.js"
   }
 }

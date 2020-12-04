@@ -6,7 +6,7 @@ export function isDiscordSnowflake(allegedSnowflake: string)
 export function assertDiscordSnowflake(allegedSnowflake: string)
 {
     if (!isDiscordSnowflake(allegedSnowflake))
-        throw new Error(`ERROR: "${allegedSnowflake}" is not a Discord snowflake`);
+        throw new Error(`"${allegedSnowflake}" is not a Discord snowflake`);
 }
 
 export function isInteger(allegedInteger)
@@ -17,5 +17,5 @@ export function isInteger(allegedInteger)
 export function assertInteger(allegedInteger)
 {
     if (!isInteger(allegedInteger))
-        throw new Error(`ERROR: type assertion failed: ${allegedInteger} is not an integer`);
+        throw new Error(`type assertion failed: ${allegedInteger} is not an integer`);
 }

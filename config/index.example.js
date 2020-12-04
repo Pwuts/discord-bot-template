@@ -6,8 +6,12 @@ module.exports = {
         ]
     },
     bot: {
+        defaultEnabledModules: [
+            'MetaModule',
+            'HackerspaceModule',
+        ],
         reservedCommands: [
-            'help'
+            // 'help'
         ]
     }
 }
