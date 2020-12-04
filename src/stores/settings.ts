@@ -38,17 +38,14 @@ const SettingsStore = {
     {
         serverId == 'global' || assertDiscordSnowflake(serverId);
 
-        const insert = await db.prepare(
+        await db.run(
             `INSERT INTO settingsText VALUES ($server, $name, $value)
                 ON CONFLICT (server, name)
-                    DO UPDATE SET value = excluded.value`
-        );
-        await insert.run({
+                    DO UPDATE SET value = excluded.value`, {
             $server: serverId,
             $name: optionName,
             $value: value,
         });
-        insert.finalize();
     },
 
     async getTextOption(serverId: string, optionName: string)
@@ -69,17 +66,14 @@ const SettingsStore = {
         serverId == 'global' || assertDiscordSnowflake(serverId);
         assertInteger(value);
 
-        const insert = await db.prepare(
+        await db.run(
             `INSERT INTO settingsInt VALUES ($server, $name, $value)
                 ON CONFLICT (server, name)
-                    DO UPDATE SET value = excluded.value`
-        );
-        await insert.run({
+                    DO UPDATE SET value = excluded.value`, {
             $server: serverId,
             $name: optionName,
             $value: value,
         });
-        insert.finalize();
     },
 
     async getIntOption(serverId: string, optionName: string)

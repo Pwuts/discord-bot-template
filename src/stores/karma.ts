@@ -64,18 +64,16 @@ const KarmaStore = {
         const isUser = !!karmaEntry.userId;
         if (isUser) assertDiscordSnowflake(karmaEntry.userId);
 
-        const insert = await db.prepare(
+        await db.run(
             `INSERT INTO karma (server, subject, ${isUser ? 'userId, ' : ''}karma) VALUES ($server, $subject, ${isUser ? '$userId, ' : ''}$karma)
                 ON CONFLICT (server, ${isUser ? 'userId' : 'subject'})
-                    DO UPDATE SET karma=excluded.karma${isUser ? ', subject=excluded.subject' : ''}`);
-        await insert.run({
+                    DO UPDATE SET karma=excluded.karma${isUser ? ', subject=excluded.subject' : ''}`, {
             $server: karmaEntry.server,
             $subject: karmaEntry.subject,
             $userId: karmaEntry.userId,
             $karma: karmaEntry.karma,
         });
 
-        insert.finalize();
         return karmaEntry;
     },
 
@@ -85,22 +83,20 @@ const KarmaStore = {
         if (karmaEntry.userId) assertDiscordSnowflake(karmaEntry.userId);
         assertInteger(delta);
 
-        const update = await db.prepare(
+        await db.run(
             `UPDATE karma
                 SET karma = karma + ${delta}
                 WHERE server = $server
                   AND (
                     (userId IS NOT NULL AND userID = $userId)
                     OR LOWER(subject) = LOWER($subject)
-                  )`);
-        await update.run({
+                  )`, {
             $server: karmaEntry.server,
             $subject: karmaEntry.subject,
             $userId: karmaEntry.userId,
         });
         karmaEntry.karma += delta;
 
-        update.finalize();
         return karmaEntry;
     },
 
@@ -109,20 +105,18 @@ const KarmaStore = {
         assertDiscordSnowflake(karmaEntry.server);
         if (karmaEntry.userId) assertDiscordSnowflake(karmaEntry.userId);
 
-        const deleet = await db.prepare(
+        await db.run(
             `DELETE FROM karma
                 WHERE server = $server
                   AND (
                     (userId IS NOT NULL AND userID = $userId)
                     OR LOWER(subject) = LOWER($subject)
                   )
-                LIMIT 1`);
-        await deleet.run({
+                LIMIT 1`, {
             $server: karmaEntry.server,
             $subject: karmaEntry.subject,
             $userId: karmaEntry.userId,
         });
-        deleet.finalize();
     },
 
     async list(serverId: string): Promise<KarmaEntry[]>
