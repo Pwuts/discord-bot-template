@@ -4,8 +4,8 @@
 */
 
 import { Client, Message, MessageEmbed } from 'discord.js';
+import AdminService from '../services/admin-service';
 import SettingsStore from '../stores/settings';
-import isAdmin = require('./is-admin');
 
 const config = require('../../config').bot;
 
@@ -113,8 +113,8 @@ export class CommandRouter {
     
                 activeModules.map(module => module.commandHandlers)
                     .reduce((p, c) => c ? p.concat(c) : p, this.commandHandlers)
-                    .forEach(handler => {
-                        if (handler.adminOnly && !isAdmin(message.author.id)) return;
+                    .forEach(async handler => {
+                        if (handler.adminOnly && !await AdminService.isAdminMessage(message)) return;
 
                         if (handler.commands.includes(command.name.toLowerCase())) {
                             handler.callback(message, command, this.discord);

@@ -19,6 +19,16 @@ export function parseDiscordUserTag(allegedChannelTag: string)
     return /<@!?(?<snowflake>\d{18})>/.exec(allegedChannelTag)?.groups?.snowflake;
 }
 
+export function isDiscordRoleTag(allegedRoleTag: string)
+{
+    return !!parseDiscordRoleTag(allegedRoleTag);
+}
+
+export function parseDiscordRoleTag(allegedRoleTag: string)
+{
+    return /<@&(?<snowflake>\d{18})>/.exec(allegedRoleTag)?.groups?.snowflake;
+}
+
 export function isDiscordChannelTag(allegedChannelTag: string)
 {
     return !!parseDiscordChannelTag(allegedChannelTag);

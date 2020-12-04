@@ -6,7 +6,9 @@ module.exports = {
         ]
     },
     bot: {
+        allowGlobalAdmins: true,
         defaultEnabledModules: [
+            'AdminModule',
             'MetaModule',
             'HackerspaceModule',
         ],
