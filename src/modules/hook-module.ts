@@ -4,7 +4,7 @@
 */
 
 import HookStore from '../stores/hooks';
-import { Module } from '../util/command-router';
+import { Module } from '../util/module-manager';
 import { parseDiscordChannelTag } from '../util/validators';
 
 
@@ -19,8 +19,7 @@ const HookModule: Module = {
     },
 
     commandHandlers: [
-        {   // Returns info for the requested hackerspace
-            adminOnly: true,
+        {   // Links a channel to a message hook
             commands: [ 'usechannel' ],
             callback: async (message, command) => {
                 const usageString = 'usage: `!useChannel [channel?] for [hook name]`';

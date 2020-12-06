@@ -4,15 +4,15 @@
 */
 
 import * as fs from 'fs';
-import CommandRouter from './util/command-router';
+import ModuleManager from './util/module-manager';
 import { initialize } from './services/discord-service';
 
 const config = require('../config');
 const DiscordService = initialize(config.discord.token);
 
-const commandRouter = new CommandRouter(DiscordService.getClient());
+const moduleManager = new ModuleManager(DiscordService.getClient());
 
 // load modules
 fs.readdirSync(`${__dirname}/modules/`).forEach(filename => {
-    commandRouter.use(require(`${__dirname}/modules/${filename}`).default);
+    moduleManager.use(require(`${__dirname}/modules/${filename}`).default);
 });

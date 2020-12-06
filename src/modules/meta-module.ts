@@ -3,7 +3,7 @@
 **  Pwuts <github@pwuts.nl>
 */
 
-import { Module } from '../util/command-router';
+import { Module } from '../util/module-manager';
 
 const MetaModule: Module = {
     name: 'MetaModule',
@@ -16,7 +16,7 @@ const MetaModule: Module = {
     },
 
     commandHandlers: [
-        {   // Returns info for the requested hackerspace
+        {
             commands: ['ping', 'pong'],
             callback: (msg, command) => {
                 if (command.name == 'ping') {

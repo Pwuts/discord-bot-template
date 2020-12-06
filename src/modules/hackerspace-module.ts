@@ -3,7 +3,7 @@
 **  Pwuts <github@pwuts.nl>
 */
 
-import { Module } from '../util/command-router';
+import { Module } from '../util/module-manager';
 import { MessageEmbed as Embed } from 'discord.js';
 const HackerspaceService = require('../services/hackerspace-service');
 

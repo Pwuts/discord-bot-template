@@ -5,7 +5,7 @@
 
 import AdminService from '../services/admin-service';
 import AdminStore, { Level, levelNames } from '../stores/admins';
-import { Module } from '../util/command-router';
+import { Module } from '../util/module-manager';
 import { parseDiscordUserTag, parseDiscordRoleTag } from '../util/validators';
 
 const AdminModule: Module = {

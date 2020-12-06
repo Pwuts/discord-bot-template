@@ -4,12 +4,14 @@
 */
 
 import { Client, Message, MessageEmbed } from 'discord.js';
+import SettingsService from '../services/settings-service';
+import { Setting } from '../services/settings-service';
 import AdminService from '../services/admin-service';
 import SettingsStore from '../stores/settings';
 
 const config = require('../../config').bot;
 
-export class CommandRouter {
+export class ModuleManager {
     private discord: Client;
 
     private modules: Module[] = [];
@@ -28,14 +30,14 @@ export class CommandRouter {
                     embed: {
                         title: 'Okee grapje, hier zijn wat hints:',
                         fields: this.helpSections
-                                    .concat((await this.getActiveModules(msg.guild?.id || 'DM')).map(module => module.help))
+                                    .concat((await this.getActiveModules(msg.guild?.id ?? 'DM')).map(module => module.help))
                                     .map(section => ({ name: section.name, value: section.text }))
                     }
                 });
             }, 5e3);
         });
 
-        this.handler('module', (message, command) => {
+        this.handler('module', async (message, command) => {
             const usageString = 'usage: `!module [enable | disable] [module name]`';
             const subCommands = ['disable', 'enable'];
 
@@ -50,12 +52,24 @@ export class CommandRouter {
                 return;
             }
 
-            if (!this.moduleExists(args[1])) {
+            const module = this.findModule(args[1]);
+
+            if (!module) {
                 message.reply(`module "${args[1]}" does not exist`);
                 return;
             }
 
-            this.setModuleEnabled(message.guild?.id || 'DM', args[1], !!subCommands.indexOf(args[0]));
+            const setEnabled = !!subCommands.indexOf(args[0]);
+
+            if (module.beforeEnable && setEnabled) {
+                try {
+                    await module.beforeEnable(message.guild?.id);
+                } catch (error) {
+                    message.reply(`could not enable module "${module.name}": ${error.message}`)
+                    return;
+                }
+            }
+            this.setModuleEnabled(message.guild?.id, args[1], setEnabled);
 
             message.reply(`module "${args[1]}" ${args[0]}d!`);
         }, true);
@@ -66,7 +80,7 @@ export class CommandRouter {
                 description: 'Active and inactive modules for this guild or DM channel'
             });
 
-            const activeModules = await this.getActiveModules(message.guild?.id || 'DM');
+            const activeModules = await this.getActiveModules(message.guild?.id ?? 'DM');
 
             if (activeModules.length) {
                 embed.addField(
@@ -108,16 +122,27 @@ export class CommandRouter {
                     `Command from ${message.author.username}:`, command,
                     'in', message.guild ? `guild "${message.guild.name}"` : 'DM'
                 );
+
+                const localAdmin = await AdminService.isLocalAdminMessage(message);
+                const globalAdmin = await AdminService.isGlobalAdminMessage(message);
+
+                let authorizations: string[] = [];  // TODO: make less hacky
+                if (localAdmin) authorizations.push('admin.local');
+                if (globalAdmin) authorizations.push('admin.global');
     
                 activeModules = await activeModulesPromise;
     
                 activeModules.map(module => module.commandHandlers)
                     .reduce((p, c) => c ? p.concat(c) : p, this.commandHandlers)
                     .forEach(async handler => {
-                        if (handler.adminOnly && !await AdminService.isAdminMessage(message)) return;
+                        if (handler.localAdminOperation || handler.globalAdminOperation) {
+                            if (!localAdmin && !globalAdmin) return;
+                            if (handler.localAdminOperation && !handler.globalAdminOperation && !localAdmin) return;
+                            if (handler.globalAdminOperation && !handler.localAdminOperation && !globalAdmin) return;
+                        }
 
                         if (handler.commands.includes(command.name.toLowerCase())) {
-                            handler.callback(message, command, this.discord);
+                            handler.callback(message, command, authorizations);
                         }
                     });
             }
@@ -133,7 +158,8 @@ export class CommandRouter {
     }
 
     // Registers a handler not connected to a module. DO NOT USE IN MODULES!
-    public handler(commands: string | string[], callback: CommandHandler['callback'], adminOnly?: boolean)
+    public handler(commands: string | string[], callback: CommandHandler['callback'],
+                   localAdminOperation?: boolean, globalAdminOperation?: boolean)
     {
         if (typeof commands == 'string') {
             commands = [ commands ];
@@ -144,7 +170,8 @@ export class CommandRouter {
         }
 
         this.commandHandlers.push({
-            adminOnly,
+            localAdminOperation,
+            globalAdminOperation,
             commands,
             callback
         });
@@ -172,6 +199,7 @@ export class CommandRouter {
         }
 
         this.modules.push(module);
+        module.settings?.forEach(s => SettingsService.registerSetting({ ...s, module }));
 
         let chc = module.commandHandlers?.length ?? 0;
         console.info(
@@ -195,9 +223,14 @@ export class CommandRouter {
     }
 
     // Utility methods
+    private findModule(moduleName: string): Module
+    {
+        return this.modules.find(module => module.name == moduleName)
+    }
+
     private moduleExists(moduleName: string): boolean
     {
-        return !!this.modules.find(module => module.name == moduleName)
+        return !!this.findModule(moduleName)
     }
 
     private async moduleIsEnabled(serverId: string, moduleName: string): Promise<boolean>
@@ -225,15 +258,23 @@ export class CommandRouter {
     }
 }
 
-export default CommandRouter;
+export default ModuleManager;
 
 export interface Module {
     name: string,
     help?: HelpSection,
     allowDM: boolean,
+    settings?: Setting[],
     commandHandlers?: CommandHandler[],
     messageHandler?: MessageCallback,
-    initModule?: ({ discord, commandRouter }: { discord: Client, commandRouter: CommandRouter }) => any
+    jobs?: ModuleJob[],
+    initModule?: (
+        { discord, moduleManager }:
+            { discord: Client, moduleManager: ModuleManager }
+    ) => any,
+    beforeEnable?: (
+        scope: string,
+    ) => Promise<void>,
 }
 
 export interface HelpSection {
@@ -242,10 +283,16 @@ export interface HelpSection {
 }
 
 export interface CommandHandler {
-    adminOnly?: boolean,
+    localAdminOperation?: boolean,
+    globalAdminOperation?: boolean,
     commands: string[],
-    callback: (message: Message, command: { name: string, args: string }, discord: Client) => any,
+    callback: (message: Message, command: { name: string, args: string }, authorizationScopes: string[]) => any,
 }
 
 export type MessageCallback =
     (message: Message, discord: Client) => any
+
+export interface ModuleJob {
+    interval: number,
+    callback: () => void,
+}

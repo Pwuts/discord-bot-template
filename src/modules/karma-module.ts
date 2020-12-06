@@ -5,7 +5,7 @@
 
 const isAdmin = require('../util/is-admin');
 import KarmaService = require('../services/karma-service');
-import { Module } from '../util/command-router';
+import { Module } from '../util/module-manager';
 import { MessageEmbed as Embed } from 'discord.js';
 
 const KarmaModule: Module = {
